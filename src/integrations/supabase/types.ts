@@ -14,16 +14,251 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      business_areas: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      institutions: {
+        Row: {
+          business_area_id: string
+          contact_email: string | null
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_area_id: string
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_area_id?: string
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "institutions_business_area_id_fkey"
+            columns: ["business_area_id"]
+            isOneToOne: false
+            referencedRelation: "business_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_business_areas: {
+        Row: {
+          assigned_at: string
+          business_area_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          business_area_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          business_area_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_business_areas_business_area_id_fkey"
+            columns: ["business_area_id"]
+            isOneToOne: false
+            referencedRelation: "business_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_reports: {
+        Row: {
+          action_register: string | null
+          business_area_id: string
+          business_prospect: string | null
+          competitor_insight: string | null
+          created_at: string
+          follow_up_date: string | null
+          id: string
+          industry_insight: string | null
+          institution_id: string
+          other_info: string | null
+          priority: Database["public"]["Enums"]["priority_level"]
+          reporting_week: string
+          status: Database["public"]["Enums"]["report_status"]
+          submitted_at: string | null
+          submitted_by: string
+          updated_at: string
+        }
+        Insert: {
+          action_register?: string | null
+          business_area_id: string
+          business_prospect?: string | null
+          competitor_insight?: string | null
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          industry_insight?: string | null
+          institution_id: string
+          other_info?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          reporting_week: string
+          status?: Database["public"]["Enums"]["report_status"]
+          submitted_at?: string | null
+          submitted_by: string
+          updated_at?: string
+        }
+        Update: {
+          action_register?: string | null
+          business_area_id?: string
+          business_prospect?: string | null
+          competitor_insight?: string | null
+          created_at?: string
+          follow_up_date?: string | null
+          id?: string
+          industry_insight?: string | null
+          institution_id?: string
+          other_info?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          reporting_week?: string
+          status?: Database["public"]["Enums"]["report_status"]
+          submitted_at?: string | null
+          submitted_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_reports_business_area_id_fkey"
+            columns: ["business_area_id"]
+            isOneToOne: false
+            referencedRelation: "business_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_reports_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      user_has_business_area: {
+        Args: { _ba_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "team_member"
+      priority_level: "low" | "medium" | "high" | "critical"
+      report_status: "draft" | "submitted" | "reviewed" | "pending" | "overdue"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +385,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "team_member"],
+      priority_level: ["low", "medium", "high", "critical"],
+      report_status: ["draft", "submitted", "reviewed", "pending", "overdue"],
+    },
   },
 } as const
