@@ -7,7 +7,6 @@ import { Briefcase, Building2, FileCheck2, Clock, ShieldCheck, Users } from "luc
 import { motion } from "framer-motion";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, Legend,
 } from "recharts";
 import { startOfWeek, format, subWeeks } from "date-fns";
 
