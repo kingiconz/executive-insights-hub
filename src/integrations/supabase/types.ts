@@ -115,6 +115,45 @@ export type Database = {
         }
         Relationships: []
       }
+      report_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          report_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          report_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_comments_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_business_areas: {
         Row: {
           assigned_at: string
@@ -176,6 +215,8 @@ export type Database = {
           id: string
           industry_insight: string | null
           institution_id: string
+          last_comment_at: string | null
+          last_seen_comment_at: string | null
           other_info: string | null
           priority: Database["public"]["Enums"]["priority_level"]
           reporting_week: string
@@ -194,6 +235,8 @@ export type Database = {
           id?: string
           industry_insight?: string | null
           institution_id: string
+          last_comment_at?: string | null
+          last_seen_comment_at?: string | null
           other_info?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           reporting_week: string
@@ -212,6 +255,8 @@ export type Database = {
           id?: string
           industry_insight?: string | null
           institution_id?: string
+          last_comment_at?: string | null
+          last_seen_comment_at?: string | null
           other_info?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           reporting_week?: string
