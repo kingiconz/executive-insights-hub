@@ -13,10 +13,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Beacon BI — Sector Intelligence Platform" },
+      { title: "e-CB BI — Sector Intelligence Platform" },
       { name: "description", content: "Premium enterprise business intelligence and weekly sector reporting platform." },
     ],
     links: [
+      { rel: "icon", type: "image/x-icon", href: "/logo.ico" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

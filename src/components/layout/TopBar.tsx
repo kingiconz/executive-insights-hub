@@ -78,7 +78,7 @@ export function TopBar() {
         <motion.div key={title}
           initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Beacon Intelligence</p>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">e-CB Intelligence</p>
           <h1 className="font-serif text-xl font-semibold text-navy">{title}</h1>
         </motion.div>
 

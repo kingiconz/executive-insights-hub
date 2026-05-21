@@ -68,7 +68,7 @@ function LoginPage() {
             <span>Health</span><span>Banking</span><span>Fintech</span><span>Extractive</span>
           </div>
         </motion.div>
-        <p className="relative z-10 text-white/40 text-xs">© {new Date().getFullYear()} Beacon Intelligence. Confidential.</p>
+        <p className="relative z-10 text-white/40 text-xs">© {new Date().getFullYear()} e-CB Intelligence. Confidential.</p>
       </div>
 
       {/* Right — form */}
@@ -78,6 +78,15 @@ function LoginPage() {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="w-full max-w-md"
         >
+          <div className="flex flex-col items-center gap-4 mb-10">
+            <div className="h-16 w-16 rounded-2xl bg-navy flex items-center justify-center shadow-elegant rotate-3 hover:rotate-0 transition-transform duration-500">
+              <img src="/logo.ico" alt="Logo" className="h-10 w-10" />
+            </div>
+            <div className="text-center">
+              <h1 className="font-serif text-3xl font-bold tracking-tight text-navy">e-CB</h1>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mt-1">Executive Insights Hub</p>
+            </div>
+          </div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Secure access</p>
           <h1 className="mt-2 font-serif text-3xl font-semibold text-navy">
             {mode === "signin" ? "Sign in to your workspace" : "Create your account"}
@@ -111,7 +120,7 @@ function LoginPage() {
 
           <div className="mt-6 text-sm text-center text-muted-foreground">
             {mode === "signin" ? (
-              <>New to Beacon? <button onClick={() => setMode("signup")} className="text-royal hover:underline">Create an account</button></>
+              <>New to e-CB? <button onClick={() => setMode("signup")} className="text-royal hover:underline">Create an account</button></>
             ) : (
               <>Already have access? <button onClick={() => setMode("signin")} className="text-royal hover:underline">Sign in</button></>
             )}

@@ -22,7 +22,15 @@ function AnalyticsPage() {
     queryFn: async () => {
       let q = supabase
         .from("weekly_reports")
-        .select("id, status, priority, reporting_week, business_area_id, submitted_by, business_area:business_areas(name), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)");
+        .select(`
+          id, 
+          status, 
+          priority, 
+          reporting_week, 
+          business_area_id, 
+          submitted_by, 
+          business_area:business_areas(name)
+        `);
       if (!isAdmin && user) q = q.eq("submitted_by", user.id);
       const { data: rows } = await q;
       const all = rows ?? [];
