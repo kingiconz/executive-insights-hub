@@ -13,7 +13,7 @@ services:
     regions:
       - fra # You can change this to your preferred region (e.g., was, sin, etc.)
     instance_types:
-      - micro # This is the smallest instance type, suitable for small apps
+      - small # Increased from micro to provide more resources for SSR
     env:
       - key: NODE_ENV
         value: production
