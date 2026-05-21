@@ -115,14 +115,14 @@ function ExportsPage() {
       doc.addImage(logoUrl, "ICO", 14, 11, 15, 15);
       
       doc.setFont("times", "bold");
-      doc.setFontSize(22); // Increased font size for better brand presence
+      doc.setFontSize(18); // Reduced from 22 for better alignment
       doc.setTextColor(30, 58, 138); // Navy
-      doc.text("e-CB INTELLIGENCE", 30, 18);
+      doc.text("e-CB INTELLIGENCE", 32, 19);
       
       doc.setFont("times", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(9); // Reduced from 10 to maintain hierarchy
       doc.setTextColor(100);
-      doc.text("EXECUTIVE SECTOR INTELLIGENCE HUB", 32, 25);
+      doc.text("EXECUTIVE SECTOR INTELLIGENCE HUB", 32, 24);
       
       doc.setDrawColor(30, 58, 138);
       doc.setLineWidth(0.5);
