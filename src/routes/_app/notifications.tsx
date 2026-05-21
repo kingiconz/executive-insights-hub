@@ -85,11 +85,11 @@ function NotificationsPage() {
         (subs ?? []).forEach((s: any) => events.push({
           id: `r-${s.id}`,
           type: "submission",
-          title: s.status === "submitted" ? "New report submitted" : `Report ${s.status}`,
+          title: s.status === "reviewed" ? "New report submitted" : `Report ${s.status}`,
           body: `${s.institution?.name ?? "report"}`,
           at: s.submitted_at ?? s.created_at,
-          icon: s.status === "submitted" ? FileText : CheckCircle2,
-          tone: s.status === "submitted" ? "royal" : "success",
+          icon: s.status === "reviewed" ? FileText : CheckCircle2,
+          tone: s.status === "reviewed" ? "royal" : "success",
         }));
       }
 

@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
+import { Route as AppQuarterlyRouteImport } from './routes/_app/quarterly'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppInstitutionsRouteImport } from './routes/_app/institutions'
 import { Route as AppExportsRouteImport } from './routes/_app/exports'
@@ -47,6 +48,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppQuarterlyRoute = AppQuarterlyRouteImport.update({
+  id: '/quarterly',
+  path: '/quarterly',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/exports': typeof AppExportsRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/quarterly': typeof AppQuarterlyRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/admin/business-areas': typeof AppAdminBusinessAreasRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/exports': typeof AppExportsRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/quarterly': typeof AppQuarterlyRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/admin/business-areas': typeof AppAdminBusinessAreasRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/_app/exports': typeof AppExportsRoute
   '/_app/institutions': typeof AppInstitutionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/quarterly': typeof AppQuarterlyRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/admin/business-areas': typeof AppAdminBusinessAreasRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/exports'
     | '/institutions'
     | '/notifications'
+    | '/quarterly'
     | '/reports'
     | '/settings'
     | '/admin/business-areas'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/exports'
     | '/institutions'
     | '/notifications'
+    | '/quarterly'
     | '/reports'
     | '/settings'
     | '/admin/business-areas'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/_app/exports'
     | '/_app/institutions'
     | '/_app/notifications'
+    | '/_app/quarterly'
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/admin/business-areas'
@@ -243,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/quarterly': {
+      id: '/_app/quarterly'
+      path: '/quarterly'
+      fullPath: '/quarterly'
+      preLoaderRoute: typeof AppQuarterlyRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notifications': {
@@ -326,6 +345,7 @@ interface AppRouteChildren {
   AppExportsRoute: typeof AppExportsRoute
   AppInstitutionsRoute: typeof AppInstitutionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppQuarterlyRoute: typeof AppQuarterlyRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppAdminBusinessAreasRoute: typeof AppAdminBusinessAreasRoute
@@ -341,6 +361,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppExportsRoute: AppExportsRoute,
   AppInstitutionsRoute: AppInstitutionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppQuarterlyRoute: AppQuarterlyRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppAdminBusinessAreasRoute: AppAdminBusinessAreasRoute,

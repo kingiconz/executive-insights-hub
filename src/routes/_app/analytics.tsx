@@ -7,8 +7,9 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { startOfWeek, format, subWeeks } from "date-fns";
+import { startOfWeek, format, subWeeks, startOfMonth, endOfMonth, eachWeekOfInterval } from "date-fns";
 import { Loader2 } from "lucide-react";
+import { getWorkWeekOfMonth } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/_app/analytics")({ component: AnalyticsPage });
 
@@ -32,8 +33,14 @@ function AnalyticsPage() {
           business_area:business_areas(name)
         `);
       if (!isAdmin && user) q = q.eq("submitted_by", user.id);
-      const { data: rows } = await q;
-      const all = rows ?? [];
+      
+      const [{ data: reportsData }, { data: profiles }] = await Promise.all([
+        q,
+        supabase.from("profiles").select("id, full_name")
+      ]);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) ?? []);
+      const all = reportsData ?? [];
 
       // by business area
       const byArea: Record<string, { name: string; count: number }> = {};
@@ -49,22 +56,27 @@ function AnalyticsPage() {
       }));
 
       // by status
-      const byStatus = ["draft", "submitted", "reviewed"].map(s => ({
+      const byStatus = ["draft", "reviewed"].map(s => ({
         name: s, value: all.filter(r => r.status === s).length,
       }));
 
-      // weekly trend (last 12)
+      // weekly trend (last 12) - now showing "Week X"
       const trend = Array.from({ length: 12 }).map((_, i) => {
-        const start = format(startOfWeek(subWeeks(new Date(), 11 - i), { weekStartsOn: 1 }), "yyyy-MM-dd");
-        return { week: format(new Date(start), "MMM d"), submissions: all.filter(r => r.reporting_week === start).length };
+        const date = subWeeks(new Date(), 11 - i);
+        const start = format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+        const label = `${getWorkWeekOfMonth(new Date(start))} - ${format(new Date(start), "MMM")}`;
+        return { 
+          week: label, 
+          submissions: all.filter(r => r.reporting_week === start).length 
+        };
       });
 
       // top submitters (admin only)
       const bySubmitter: Record<string, { name: string; count: number }> = {};
       all.forEach((r: any) => {
-        const k = r.submitter?.full_name ?? "—";
-        bySubmitter[k] = bySubmitter[k] ?? { name: k, count: 0 };
-        bySubmitter[k].count++;
+        const name = profileMap.get(r.submitted_by) || "Unknown Staff";
+        bySubmitter[name] = bySubmitter[name] ?? { name, count: 0 };
+        bySubmitter[name].count++;
       });
       const topSubmitters = Object.values(bySubmitter).sort((a, b) => b.count - a.count).slice(0, 5);
 
@@ -95,7 +107,16 @@ function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data?.trend ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.91 0.012 250)" vertical={false} />
-              <XAxis dataKey="week" tick={{ fontSize: 11, fill: "oklch(0.48 0.025 255)" }} axisLine={false} tickLine={false} />
+              <XAxis 
+                dataKey="week" 
+                tick={{ fontSize: 9, fill: "oklch(0.48 0.025 255)" }} 
+                axisLine={false} 
+                tickLine={false} 
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
               <YAxis tick={{ fontSize: 11, fill: "oklch(0.48 0.025 255)" }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-serif)" }} />
               <Bar dataKey="submissions" fill="var(--royal)" radius={[4, 4, 0, 0]} animationDuration={800} />

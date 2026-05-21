@@ -78,7 +78,7 @@ function ExportsPage() {
           r.institution?.name, 
           r.institution?.business_area?.name,
           r.submitter_name, 
-          r.status, 
+          r.status === "reviewed" ? "submitted" : r.status, 
           r.priority,
           r.business_prospect, 
           r.competitor_insight, 
@@ -218,8 +218,7 @@ function ExportsPage() {
             <select className="form-input" value={status} onChange={e => setStatus(e.target.value)}>
               <option value="all">All Statuses</option>
               <option value="draft">Draft</option>
-              <option value="submitted">Submitted</option>
-              <option value="reviewed">Reviewed</option>
+              <option value="reviewed">Submitted</option>
             </select>
           </Field>
           <Field label="Business Area">

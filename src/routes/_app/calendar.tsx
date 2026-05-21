@@ -6,9 +6,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, isSameMonth,
-  startOfWeek, endOfWeek, addMonths, subMonths,
+  startOfWeek, endOfWeek, addMonths, subMonths, eachWeekOfInterval, isMonday,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { getWorkWeekOfMonth } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/_app/calendar")({ component: CalendarPage });
 
@@ -21,7 +22,7 @@ function CalendarPage() {
     enabled: !!user,
     queryFn: async () => {
       let q = supabase.from("weekly_reports")
-        .select("id, reporting_week, follow_up_date, status, priority, institution:institutions(name)");
+        .select("id, reporting_week, follow_up_date, created_at, submitted_at, status, priority, institution:institutions(name)");
       if (!isAdmin && user) q = q.eq("submitted_by", user.id);
       const { data } = await q;
       return data ?? [];
@@ -36,11 +37,15 @@ function CalendarPage() {
   const eventsByDay = (d: Date) => {
     const e: { kind: string; label: string; tone: string }[] = [];
     (events ?? []).forEach((r: any) => {
-      if (r.reporting_week && isSameDay(new Date(r.reporting_week), d)) {
-        e.push({ kind: "week", label: `${r.institution?.name} (week)`, tone: r.status === "submitted" ? "royal" : "muted" });
+      // 1. Actual Activity Day (when the user recorded/submitted it)
+      const recordedDate = r.submitted_at ? new Date(r.submitted_at) : new Date(r.created_at);
+      if (isSameDay(recordedDate, d)) {
+        const weekLabel = getWorkWeekOfMonth(new Date(r.reporting_week));
+        e.push({ kind: "activity", label: `${r.institution?.name} (${weekLabel})`, tone: "success" });
       }
+      // 2. Follow-up Commitments
       if (r.follow_up_date && isSameDay(new Date(r.follow_up_date), d)) {
-        e.push({ kind: "follow", label: `${r.institution?.name} follow-up`, tone: r.priority === "critical" ? "danger" : "warning" });
+        e.push({ kind: "follow", label: `F/U: ${r.institution?.name}`, tone: r.priority === "critical" ? "danger" : "warning" });
       }
     });
     return e;
@@ -72,25 +77,34 @@ function CalendarPage() {
               const inMonth = isSameMonth(d, cursor);
               const today = isSameDay(d, new Date());
               const dayEvents = eventsByDay(d);
+              
               return (
                 <motion.div key={i}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.005 }}
-                  className={`min-h-[100px] border-b border-r p-2 ${inMonth ? "bg-card" : "bg-muted/20"}`}>
+                  className={`min-h-[100px] border-b border-r p-2 relative ${inMonth ? "bg-card" : "bg-muted/20"}`}>
+                  
+                  {inMonth && (
+                    <div className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-widest text-royal/40">
+                      {getWorkWeekOfMonth(d)}
+                    </div>
+                  )}
+
                   <div className={`text-xs font-medium mb-1 ${today ? "text-royal" : inMonth ? "text-navy" : "text-muted-foreground"}`}>
                     {today && <span className="inline-block h-5 w-5 rounded-full bg-royal text-white text-center leading-5 mr-1">{format(d, "d")}</span>}
                     {!today && format(d, "d")}
                   </div>
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((e, j) => {
+                    {dayEvents.slice(0, 4).map((e, j) => {
                       const tone: Record<string, string> = {
                         royal: "bg-royal/15 text-royal",
                         muted: "bg-muted text-muted-foreground",
+                        success: "bg-success/15 text-success",
                         warning: "bg-warning/15 text-warning",
                         danger: "bg-destructive/15 text-destructive",
                       };
                       return <div key={j} className={`text-[10px] px-1.5 py-0.5 rounded truncate ${tone[e.tone]}`}>{e.label}</div>;
                     })}
-                    {dayEvents.length > 3 && <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</div>}
+                    {dayEvents.length > 4 && <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 4} more</div>}
                   </div>
                 </motion.div>
               );
@@ -99,11 +113,10 @@ function CalendarPage() {
         )}
       </div>
 
-      <div className="flex gap-4 text-xs">
-        <Legend color="bg-royal" label="Submitted week" />
-        <Legend color="bg-muted-foreground" label="Reporting week" />
+      <div className="flex flex-wrap gap-4 text-[10px] uppercase tracking-wider font-semibold">
+        <Legend color="bg-success" label="Report Recorded" />
         <Legend color="bg-warning" label="Follow-up" />
-        <Legend color="bg-destructive" label="Critical follow-up" />
+        <Legend color="bg-destructive" label="Critical" />
       </div>
     </div>
   );

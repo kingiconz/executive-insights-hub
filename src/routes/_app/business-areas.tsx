@@ -21,7 +21,7 @@ function BusinessAreasPage() {
         const { data: ubas } = await supabase
           .from("user_business_areas")
           .select("business_area:business_areas(*)")
-          .eq("user_id", user?.id);
+          .eq("user_id", user!.id);
         areas = (ubas?.map(u => u.business_area) as any[])?.filter(Boolean) ?? [];
       }
 
@@ -32,7 +32,7 @@ function BusinessAreasPage() {
           supabase.from("weekly_reports").select("id, status").eq("business_area_id", a.id),
         ]);
         const total = reports.data?.length ?? 0;
-        const submitted = (reports.data ?? []).filter(r => r.status === "submitted" || r.status === "reviewed").length;
+        const submitted = (reports.data ?? []).filter(r => r.status === "reviewed").length;
         return {
           ...a,
           institutions: inst.count ?? 0,

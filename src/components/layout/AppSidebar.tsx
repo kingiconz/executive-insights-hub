@@ -15,6 +15,7 @@ const baseItems = [
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/calendar", label: "Calendar", icon: Calendar },
+  { to: "/quarterly", label: "Quarterly Review", icon: Layers },
   { to: "/exports", label: "Export Center", icon: Download },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

@@ -6,8 +6,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Save, Send, Loader2, X, MessageSquare, Edit3, Calendar as CalendarIcon, Building2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { startOfWeek, format, formatDistanceToNow } from "date-fns";
+import { startOfWeek, format, formatDistanceToNow, getMonth, getYear } from "date-fns";
 import { StatusBadge } from "./dashboard";
+import { getWorkWeekOfMonth } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/_app/reports")({ component: ReportsPage });
 
@@ -18,7 +19,7 @@ function ReportsPage() {
   const qc = useQueryClient();
   const [composing, setComposing] = useState(false);
   const [openReport, setOpenReport] = useState<any | null>(null);
-  const [filter, setFilter] = useState<"all" | "draft" | "submitted" | "reviewed">("all");
+  const [filter, setFilter] = useState<"all" | "draft" | "reviewed">("all");
   const [selectedMember, setSelectedMember] = useState<string>("all");
   const [selectedArea, setSelectedArea] = useState<string>("all");
 
@@ -35,9 +36,28 @@ function ReportsPage() {
   });
 
   const { data: areas } = useQuery({
-    queryKey: ["business-areas-list"],
-    queryFn: async () => (await supabase.from("business_areas").select("id, name").order("name")).data ?? [],
+    queryKey: ["business-areas-list", selectedMember],
+    queryFn: async () => {
+      if (selectedMember === "all") {
+        const { data } = await supabase.from("business_areas").select("id, name").order("name");
+        return data ?? [];
+      } else {
+        const { data: assignments } = await supabase
+          .from("user_business_areas")
+          .select("business_area:business_areas(id, name)")
+          .eq("user_id", selectedMember);
+        
+        return assignments?.map((a: any) => a.business_area).filter(Boolean).sort((a: any, b: any) => a.name.localeCompare(b.name)) ?? [];
+      }
+    },
   });
+
+  // Reset selected area if it's not in the filtered list for the selected member
+  useEffect(() => {
+    if (selectedArea !== "all" && areas && !areas.find(a => a.id === selectedArea)) {
+      setSelectedArea("all");
+    }
+  }, [areas, selectedArea]);
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ["reports", isAdmin, user?.id, selectedMember, selectedArea],
@@ -50,6 +70,9 @@ function ReportsPage() {
           institution:institutions(
             name,
             business_area:business_areas(id, name, color)
+          ),
+          submitter:profiles!weekly_reports_submitted_by_fkey(
+            full_name
           )
         `)
         .order("created_at", { ascending: false });
@@ -73,7 +96,11 @@ function ReportsPage() {
     },
   });
 
-  const filtered = (reports ?? []).filter((r: any) => filter === "all" || r.status === filter);
+  const filtered = (reports ?? []).filter((r: any) => {
+    if (filter === "all") return true;
+    if (filter === "reviewed") return r.status === "reviewed" || r.status === "submitted";
+    return r.status === filter;
+  });
 
   return (
     <div className="space-y-6">
@@ -139,10 +166,10 @@ function ReportsPage() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        {(["all", "draft", "submitted", "reviewed"] as const).map(s => (
+        {(["all", "draft", "reviewed"] as const).map(s => (
           <button key={s} onClick={() => setFilter(s)}
             className={`px-3.5 py-1.5 rounded-full text-xs uppercase tracking-[0.14em] border transition-all ${filter === s ? "bg-navy text-navy-foreground border-navy shadow-elegant" : "bg-card hover:bg-muted"}`}>
-            {s}
+            {s === "reviewed" ? "submitted" : s}
           </button>
         ))}
       </div>
@@ -151,7 +178,7 @@ function ReportsPage() {
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-navy" /></div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-card/60 p-16 text-center">
-          <p className="font-serif text-lg text-navy">No reports {filter !== "all" && `in "${filter}"`}</p>
+          <p className="font-serif text-lg text-navy">No reports {filter !== "all" && `in "${filter === "reviewed" ? "submitted" : filter}"`}</p>
           <p className="mt-1 text-sm text-muted-foreground">Compose your first weekly intelligence submission.</p>
         </div>
       ) : (
@@ -214,7 +241,10 @@ function ReportCard({ report, index, onOpen }: { report: any; index: number; onO
         {report.business_prospect || report.industry_insight || report.competitor_insight || "No content yet."}
       </p>
       <div className="mt-4 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><CalendarIcon className="h-3 w-3" />{format(new Date(report.reporting_week), "MMM d")}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarIcon className="h-3 w-3" />
+          {getWorkWeekOfMonth(new Date(report.reporting_week))} — {format(new Date(report.reporting_week), "MMM yyyy")}
+        </span>
         <span className="capitalize">{report.priority}</span>
         {report.submitter?.full_name && <span className="truncate">{report.submitter.full_name}</span>}
       </div>
@@ -265,7 +295,7 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
   }, [mode, report?.id]);
 
   const save = useMutation({
-    mutationFn: async (status: "draft" | "submitted") => {
+    mutationFn: async (status: "draft" | "reviewed") => {
       const inst = institutions?.find(i => i.id === form.institution_id);
       if (!inst) throw new Error("Select an institution");
       const payload = {
@@ -281,7 +311,7 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
         priority: form.priority,
         follow_up_date: form.follow_up_date || null,
         status,
-        submitted_at: status === "submitted" ? new Date().toISOString() : null,
+        submitted_at: status === "reviewed" ? new Date().toISOString() : null,
       };
       if (mode === "compose") {
         const { error } = await supabase.from("weekly_reports").insert(payload).select().single();
@@ -292,7 +322,7 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
       }
     },
     onSuccess: (_, status) => {
-      toast.success(status === "submitted" ? "Report submitted" : "Saved");
+      toast.success(status === "reviewed" ? "Report submitted" : "Saved");
       qc.invalidateQueries({ queryKey: ["reports"] });
       qc.invalidateQueries({ queryKey: ["recent-reports"] });
       qc.invalidateQueries({ queryKey: ["member-reports"] });
@@ -324,7 +354,7 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
             </h3>
             {mode === "view" && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Week of {format(new Date(report.reporting_week), "MMMM d, yyyy")} • Submitted by {report.submitter?.full_name ?? "—"}
+                {getWorkWeekOfMonth(new Date(report.reporting_week))} of {format(new Date(report.reporting_week), "MMMM yyyy")} • Submitted by {report.submitter?.full_name ?? "—"}
               </p>
             )}
           </div>
@@ -380,14 +410,14 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
 
         {editing && (
           <div className="px-6 py-4 border-t bg-muted/30 flex items-center justify-between sticky bottom-0">
-            <p className="text-xs text-muted-foreground">Week of {format(new Date(report?.reporting_week ?? WEEK), "MMMM d, yyyy")}</p>
+            <p className="text-xs text-muted-foreground">{getWorkWeekOfMonth(new Date(report?.reporting_week ?? WEEK))} of {format(new Date(report?.reporting_week ?? WEEK), "MMMM yyyy")}</p>
             <div className="flex gap-2">
               {mode === "view" && <button onClick={() => setEditing(false)} className="h-10 px-4 rounded-md border bg-card hover:bg-muted text-sm">Cancel</button>}
               <button onClick={() => save.mutate("draft")} disabled={save.isPending}
                 className="inline-flex items-center gap-2 h-10 px-4 rounded-md border bg-card hover:bg-muted text-sm">
                 <Save className="h-4 w-4" /> Save draft
               </button>
-              <button onClick={() => save.mutate("submitted")} disabled={save.isPending}
+              <button onClick={() => save.mutate("reviewed")} disabled={save.isPending}
                 className="inline-flex items-center gap-2 h-10 px-5 rounded-md bg-gradient-navy text-white text-sm shadow-elegant">
                 {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit
               </button>

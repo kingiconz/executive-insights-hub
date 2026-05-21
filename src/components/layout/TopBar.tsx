@@ -63,7 +63,7 @@ export function TopBar() {
         const { count } = await supabase
           .from("weekly_reports")
           .select("id", { count: 'exact', head: true })
-          .eq("status", "submitted")
+          .eq("status", "reviewed")
           .gte("submitted_at", yesterday);
         if ((count ?? 0) > 0) return true;
       }

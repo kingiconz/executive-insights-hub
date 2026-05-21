@@ -11,6 +11,7 @@ import {
 import { startOfWeek, format, subWeeks } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect } from "react";
+import { getWorkWeekOfMonth } from "@/lib/date-utils";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: DashboardPage });
 
@@ -39,10 +40,13 @@ function DashboardPage() {
         const all = allReports.data ?? [];
         const submitted = all.filter(r => r.status === "submitted").length;
         const compliance = all.length ? Math.round((submitted / all.length) * 100) : 0;
+        // weekly trend (last 8) - now showing "Week X"
         const trend = Array.from({ length: 8 }).map((_, i) => {
-          const start = format(startOfWeek(subWeeks(new Date(), 7 - i), { weekStartsOn: 1 }), "yyyy-MM-dd");
+          const date = subWeeks(new Date(), 7 - i);
+          const start = format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+          const label = `${getWorkWeekOfMonth(new Date(start))} - ${format(new Date(start), "MMM")}`;
           const count = all.filter(r => r.reporting_week === start && r.status === "submitted").length;
-          return { week: format(new Date(start), "MMM d"), submissions: count };
+          return { week: label, submissions: count };
         });
         return {
           totalAreas: ba.count ?? 0,
@@ -70,10 +74,13 @@ function DashboardPage() {
       const compliance = mine.length ? Math.round((submitted / mine.length) * 100) : 0;
       const reportsThisWeek = mine.filter(r => r.reporting_week >= weekStart && r.status !== "draft").length;
       const pending = mine.filter(r => r.status === "draft").length;
+      // weekly trend (last 8) - now showing "Week X"
       const trend = Array.from({ length: 8 }).map((_, i) => {
-        const start = format(startOfWeek(subWeeks(new Date(), 7 - i), { weekStartsOn: 1 }), "yyyy-MM-dd");
+        const date = subWeeks(new Date(), 7 - i);
+        const start = format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+        const label = `${getWorkWeekOfMonth(new Date(start))} - ${format(new Date(start), "MMM")}`;
         const count = mine.filter(r => r.reporting_week === start && r.status !== "draft").length;
-        return { week: format(new Date(start), "MMM d"), submissions: count };
+        return { week: label, submissions: count };
       });
       const unread = mine.filter(r => r.last_comment_at && (!r.last_seen_comment_at || new Date(r.last_comment_at) > new Date(r.last_seen_comment_at))).length;
       return {
@@ -99,7 +106,8 @@ function DashboardPage() {
           id, 
           status, 
           reporting_week, 
-          created_at, 
+          created_at,
+          submitted_by,
           institution:institutions(
             name, 
             business_area:business_areas(name)
@@ -107,9 +115,20 @@ function DashboardPage() {
         `)
         .order("created_at", { ascending: false })
         .limit(8);
+      
       if (!isAdmin && user) q = q.eq("submitted_by", user.id);
-      const { data } = await q;
-      return data ?? [];
+      
+      const [{ data: reportsData }, { data: profiles }] = await Promise.all([
+        q,
+        supabase.from("profiles").select("id, full_name")
+      ]);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) ?? []);
+      
+      return (reportsData ?? []).map((r: any) => ({
+        ...r,
+        submitter_name: profileMap.get(r.submitted_by) || "Unknown"
+      }));
     },
   });
 
@@ -202,7 +221,16 @@ function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.91 0.012 250)" vertical={false} />
-                <XAxis dataKey="week" tick={{ fontSize: 11, fill: "oklch(0.48 0.025 255)" }} axisLine={false} tickLine={false} />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 9, fill: "oklch(0.48 0.025 255)" }} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  interval={0}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
                 <YAxis tick={{ fontSize: 11, fill: "oklch(0.48 0.025 255)" }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-serif)" }} />
                 <Area type="monotone" dataKey="submissions" stroke="var(--royal)" strokeWidth={2} fill="url(#grad)" animationDuration={900} />
@@ -269,8 +297,15 @@ function DashboardPage() {
                 >
                   <Td className="font-medium text-navy">{r.institution?.name ?? "—"}</Td>
                   <Td>{r.institution?.business_area?.name ?? "—"}</Td>
-                  {isAdmin && <Td>{r.submitter?.full_name ?? "—"}</Td>}
-                  <Td>{r.reporting_week ? format(new Date(r.reporting_week), "MMM d, yyyy") : "—"}</Td>
+                  {isAdmin && <Td>{r.submitter_name}</Td>}
+                  <Td>
+                    {r.reporting_week ? (
+                      <span className="flex flex-col">
+                        <span className="font-medium">{getWorkWeekOfMonth(new Date(r.reporting_week))}</span>
+                        <span className="text-[10px] text-muted-foreground">{format(new Date(r.reporting_week), "MMM yyyy")}</span>
+                      </span>
+                    ) : "—"}
+                  </Td>
                   <Td><StatusBadge status={r.status} /></Td>
                 </motion.tr>
               ))}
@@ -300,130 +335,7 @@ function DashboardPage() {
         </span>
       </div>
 
-      {isAdmin ? (
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-muted/50 p-1">
-            <TabsTrigger value="overview" className="px-6">Overview</TabsTrigger>
-            <TabsTrigger value="weekly-reports" className="px-6">Weekly Reports</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-8">
-            {dashboardContent}
-          </TabsContent>
-
-          <TabsContent value="weekly-reports" className="space-y-6">
-            <div className="bg-card border rounded-xl p-6 shadow-elegant">
-              {members && members.length > 0 ? (
-                <Tabs 
-                  value={selectedMember || members[0]?.id} 
-                  onValueChange={setSelectedMember}
-                  className="space-y-6"
-                >
-                  <div className="overflow-x-auto pb-2">
-                    <TabsList className="bg-muted/50 p-1 inline-flex w-auto min-w-full">
-                      {members.map((member: any) => (
-                        <TabsTrigger key={member.id} value={member.id} className="px-6 whitespace-nowrap">
-                          {member.full_name}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </div>
-
-                  {members.map((member: any) => (
-                    <TabsContent key={member.id} value={member.id} className="space-y-6 mt-0">
-                      <div className="flex items-center gap-2 text-navy mb-2">
-                        <Users className="h-4 w-4" />
-                        <h4 className="font-serif font-semibold text-lg">
-                          Intelligence Portfolio: {member.full_name}
-                        </h4>
-                      </div>
-
-                      {reportsLoading ? (
-                        <div className="py-20 text-center">
-                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-navy border-t-transparent" />
-                            Synchronizing reports...
-                          </div>
-                        </div>
-                      ) : Object.keys(groupedReports).length > 0 ? (
-                        <div className="space-y-8">
-                          {Object.entries(groupedReports).map(([areaName, reports]: [string, any]) => (
-                            <div key={areaName} className="space-y-3">
-                              <div className="flex items-center gap-2 border-b pb-2">
-                                <Briefcase className="h-4 w-4 text-royal" />
-                                <h5 className="text-sm font-semibold text-navy uppercase tracking-wider">{areaName}</h5>
-                                <span className="ml-auto text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-bold">
-                                  {reports.length} {reports.length === 1 ? 'Report' : 'Reports'}
-                                </span>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {reports.map((report: any) => (
-                                  <motion.div
-                                    key={report.id}
-                                    whileHover={{ y: -2 }}
-                                    className="p-4 rounded-lg border bg-card/50 hover:bg-card hover:shadow-md transition-all cursor-pointer group"
-                                    onClick={() => setViewingReport(report)}
-                                  >
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div className="min-w-0">
-                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                                          {format(new Date(report.reporting_week), "MMMM d, yyyy")}
-                                        </p>
-                                        <h6 className="font-semibold text-navy truncate group-hover:text-royal transition-colors">
-                                          {report.institution?.name}
-                                        </h6>
-                                      </div>
-                                      <StatusBadge status={report.status} />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3 italic">
-                                      {report.business_prospect || report.industry_insight || "No summary available."}
-                                    </p>
-                                    <div className="flex items-center justify-between text-[10px]">
-                                      <span className="flex items-center gap-1 text-muted-foreground">
-                                        <Info className="h-3 w-3" /> Quick View
-                                      </span>
-                                      <button 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          navigate({ to: "/reports" });
-                                        }}
-                                        className="text-royal font-bold hover:underline inline-flex items-center gap-0.5"
-                                      >
-                                        Edit/Review <ChevronRight className="h-3 w-3" />
-                                      </button>
-                                    </div>
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
-                          <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                            <FileCheck2 className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <h3 className="text-sm font-medium text-navy">No reports found</h3>
-                          <p className="text-xs text-muted-foreground mt-1">This team member hasn't submitted any reports in this area yet.</p>
-                        </div>
-                      )}
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              ) : (
-                <div className="py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
-                  <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Users className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-sm font-medium text-navy">No team members</h3>
-                  <p className="text-xs text-muted-foreground mt-1">There are no team members assigned to your organisation yet.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-      ) : dashboardContent}
+      {dashboardContent}
 
       <AnimatePresence>
         {viewingReport && (
@@ -513,18 +425,18 @@ function Td({ children, className = "" }: { children: React.ReactNode; className
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     draft: "bg-muted text-muted-foreground",
-    submitted: "bg-royal/10 text-royal",
     reviewed: "bg-success/10 text-success",
     pending: "bg-warning/10 text-warning",
     overdue: "bg-destructive/10 text-destructive",
   };
+  const label = status === "reviewed" ? "submitted" : status;
   return (
     <motion.span
       initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${styles[status] ?? styles.draft}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {status}
+      {label}
     </motion.span>
   );
 }
