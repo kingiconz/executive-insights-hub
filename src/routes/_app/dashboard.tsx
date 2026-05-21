@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { startOfWeek, format, subWeeks } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: DashboardPage });
 
@@ -95,7 +95,16 @@ function DashboardPage() {
     queryFn: async () => {
       let q = supabase
         .from("weekly_reports")
-        .select("id, status, reporting_week, created_at, institution:institutions(name, business_area:business_areas(name)), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)")
+        .select(`
+          id, 
+          status, 
+          reporting_week, 
+          created_at, 
+          institution:institutions(
+            name, 
+            business_area:business_areas(name)
+          )
+        `)
         .order("created_at", { ascending: false })
         .limit(8);
       if (!isAdmin && user) q = q.eq("submitted_by", user.id);
@@ -115,6 +124,13 @@ function DashboardPage() {
     },
     enabled: isAdmin,
   });
+
+  // Automatically select the first member if none selected
+  useEffect(() => {
+    if (isAdmin && members && members.length > 0 && !selectedMember) {
+      setSelectedMember(members[0].id);
+    }
+  }, [isAdmin, members, selectedMember]);
 
   const { data: memberReports, isLoading: reportsLoading } = useQuery({
     queryKey: ["member-reports", selectedMember],

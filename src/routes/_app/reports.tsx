@@ -41,16 +41,21 @@ function ReportsPage() {
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ["reports", isAdmin, user?.id, selectedMember, selectedArea],
+    enabled: !!user,
     queryFn: async () => {
       let query = supabase
         .from("weekly_reports")
-        .select("*, institution:institutions(name, business_area:business_areas(id, name, color)), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)")
+        .select(`
+          *,
+          institution:institutions(
+            name,
+            business_area:business_areas(id, name, color)
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (!isAdmin) {
-        if (user?.id) {
-          query = query.eq("submitted_by", user.id);
-        }
+        query = query.eq("submitted_by", user!.id);
       } else if (selectedMember !== "all") {
         query = query.eq("submitted_by", selectedMember);
       }
@@ -59,7 +64,11 @@ function ReportsPage() {
         query = query.eq("business_area_id", selectedArea);
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error fetching reports:", error);
+        throw error;
+      }
       return data ?? [];
     },
   });
@@ -275,15 +284,19 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
         submitted_at: status === "submitted" ? new Date().toISOString() : null,
       };
       if (mode === "compose") {
-        const { error } = await supabase.from("weekly_reports").insert(payload);
+        const { error } = await supabase.from("weekly_reports").insert(payload).select().single();
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("weekly_reports").update(payload).eq("id", report!.id);
+        const { error } = await supabase.from("weekly_reports").update(payload).eq("id", report!.id).select().single();
         if (error) throw error;
       }
     },
     onSuccess: (_, status) => {
       toast.success(status === "submitted" ? "Report submitted" : "Saved");
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["recent-reports"] });
+      qc.invalidateQueries({ queryKey: ["member-reports"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
       onSaved();
     },
     onError: (e: Error) => toast.error(e.message),

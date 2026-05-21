@@ -73,14 +73,20 @@ function NotificationsPage() {
         // Admin: latest submissions
         const { data: subs } = await supabase
           .from("weekly_reports")
-          .select("id, status, submitted_at, created_at, institution:institutions(name), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)")
+          .select(`
+            id, 
+            status, 
+            submitted_at, 
+            created_at, 
+            institution:institutions(name)
+          `)
           .order("created_at", { ascending: false })
           .limit(20);
         (subs ?? []).forEach((s: any) => events.push({
           id: `r-${s.id}`,
           type: "submission",
           title: s.status === "submitted" ? "New report submitted" : `Report ${s.status}`,
-          body: `${s.submitter?.full_name ?? "Someone"} — ${s.institution?.name ?? "report"}`,
+          body: `${s.institution?.name ?? "report"}`,
           at: s.submitted_at ?? s.created_at,
           icon: s.status === "submitted" ? FileText : CheckCircle2,
           tone: s.status === "submitted" ? "royal" : "success",
