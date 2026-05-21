@@ -23,7 +23,7 @@ const baseItems = [
 const adminItems = [
   { to: "/admin/users", label: "User Management", icon: Users },
   { to: "/admin/business-areas", label: "Business Areas", icon: Layers },
-  { to: "/admin/institutions", label: "Institutions Mgmt", icon: Building2 },
+  { to: "/admin/institutions", label: "Institution Management", icon: Building2 },
 ] as const;
 
 export function AppSidebar() {
@@ -34,8 +34,8 @@ export function AppSidebar() {
     <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-6 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-full bg-white flex items-center justify-center shadow-elegant">
-            <img src="/logo.ico" alt="Logo" className="h-8 w-8" />
+          <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center shadow-elegant">
+            <img src="/logo.ico" alt="Logo" className="h-6 w-6" />
           </div>
           <div>
             <p className="font-serif text-base font-semibold tracking-tight">e-CB</p>

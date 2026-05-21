@@ -59,7 +59,7 @@ function ReportsPage() {
     }
   }, [areas, selectedArea]);
 
-  const { data: reports, isLoading } = useQuery({
+  const { data: reports, isLoading, isError, error: queryError } = useQuery({
     queryKey: ["reports", isAdmin, user?.id, selectedMember, selectedArea],
     enabled: !!user,
     queryFn: async () => {
@@ -70,9 +70,6 @@ function ReportsPage() {
           institution:institutions(
             name,
             business_area:business_areas(id, name, color)
-          ),
-          submitter:profiles!weekly_reports_submitted_by_fkey(
-            full_name
           )
         `)
         .order("created_at", { ascending: false });
@@ -87,12 +84,25 @@ function ReportsPage() {
         query = query.eq("business_area_id", selectedArea);
       }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error("Error fetching reports:", error);
-        throw error;
+      const { data: reportsData, error: reportsError } = await query;
+      if (reportsError) {
+        console.error("Error fetching reports:", reportsError);
+        throw reportsError;
       }
-      return data ?? [];
+
+      const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id, full_name");
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
+      }
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) ?? []);
+      
+      return (reportsData ?? []).map((r: any) => ({
+        ...r,
+        submitter: {
+          full_name: profileMap.get(r.submitted_by) || "Unknown"
+        }
+      }));
     },
   });
 
@@ -176,10 +186,19 @@ function ReportsPage() {
 
       {isLoading ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-navy" /></div>
+      ) : isError ? (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-12 text-center">
+          <p className="font-serif text-lg text-destructive">Error loading reports</p>
+          <p className="mt-1 text-sm text-muted-foreground">{(queryError as Error)?.message || "An unexpected error occurred."}</p>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-card/60 p-16 text-center">
-          <p className="font-serif text-lg text-navy">No reports {filter !== "all" && `in "${filter === "reviewed" ? "submitted" : filter}"`}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Compose your first weekly intelligence submission.</p>
+          <p className="font-serif text-lg text-navy">No reports found {filter !== "all" && `with status "${filter === "reviewed" ? "submitted" : filter}"`}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isAdmin 
+              ? "There are no intelligence reports matching your current filters." 
+              : "Compose your first weekly intelligence submission to get started."}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">

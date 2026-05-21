@@ -22,11 +22,21 @@ function ExportsPage() {
   const qc = useQueryClient();
 
   const { data: businessAreas } = useQuery({
-    queryKey: ["business-areas"],
+    queryKey: ["business-areas", isAdmin, user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("business_areas").select("id, name").order("name");
-      return data ?? [];
+      if (isAdmin) {
+        const { data } = await supabase.from("business_areas").select("id, name").order("name");
+        return data ?? [];
+      } else {
+        const { data } = await supabase
+          .from("user_business_areas")
+          .select("business_area:business_areas(id, name)")
+          .eq("user_id", user!.id);
+        
+        return data?.map((d: any) => d.business_area).filter(Boolean).sort((a: any, b: any) => a.name.localeCompare(b.name)) ?? [];
+      }
     },
+    enabled: !!user,
   });
 
   const { data: reports } = useQuery({
@@ -45,7 +55,21 @@ function ExportsPage() {
       if (status !== "all") q = q.eq("status", status as any);
       if (from) q = q.gte("reporting_week", from);
       if (to) q = q.lte("reporting_week", to);
-      if (!isAdmin && user) q = q.eq("submitted_by", user.id);
+      
+      if (!isAdmin && user) {
+        // Team members see reports from institutions in their assigned business areas
+        const { data: uba } = await supabase
+          .from("user_business_areas")
+          .select("business_area_id")
+          .eq("user_id", user.id);
+        const areaIds = uba?.map(a => a.business_area_id) ?? [];
+        if (areaIds.length > 0) {
+          q = q.in("business_area_id", areaIds);
+        } else {
+          // If no areas assigned, they shouldn't see anything
+          return [];
+        }
+      }
       
       const { data: reportsData } = await q;
       

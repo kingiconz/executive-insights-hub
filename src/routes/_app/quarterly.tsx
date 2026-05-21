@@ -2,28 +2,47 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Layers, ChevronRight, Building2, Calendar, FileText, ChevronDown, ChevronUp } from "lucide-react";
-import { getQuarter, getYear, format, startOfQuarter, endOfQuarter } from "date-fns";
-import { getQuarterLabel } from "@/lib/date-utils";
+import { Layers, Building2, ChevronDown, ChevronUp, BarChart3, TrendingUp, Users, CalendarDays, Loader2 } from "lucide-react";
+import { getQuarter, getYear, format, startOfQuarter, endOfQuarter, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { getWorkWeekOfMonth } from "@/lib/date-utils";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 
 export const Route = createFileRoute("/_app/quarterly")({ component: QuarterlyPage });
 
 function QuarterlyPage() {
   const { user, isAdmin } = useAuth();
-  const [selectedQuarter, setSelectedQuarter] = useState(() => getQuarterLabel(new Date()));
-  const [expandedArea, setExpandedArea] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState(() => getYear(new Date()));
+  const [selectedQuarter, setSelectedQuarter] = useState(() => getQuarter(new Date()));
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+
+  const toggleWeek = (monthName: string, weekName: string) => {
+    const key = `${monthName}-${weekName}`;
+    setExpandedWeeks(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const years = [2026, 2027, 2028];
+  const quarters = [
+    { id: 1, label: "Q1", range: "Jan – Mar" },
+    { id: 2, label: "Q2", range: "Apr – Jun" },
+    { id: 3, label: "Q3", range: "Jul – Sep" },
+    { id: 4, label: "Q4", range: "Oct – Dec" },
+  ];
+
+  const quarterMonths = [
+    ["January", "February", "March"],
+    ["April", "May", "June"],
+    ["July", "August", "September"],
+    ["October", "November", "December"],
+  ][selectedQuarter - 1];
 
   const { data: reports, isLoading } = useQuery({
-    queryKey: ["quarterly-reports", selectedQuarter, isAdmin, user?.id],
+    queryKey: ["quarterly-reports", selectedYear, selectedQuarter, isAdmin, user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const [qStr, yearStr] = selectedQuarter.split(" ");
-      const quarter = parseInt(qStr.replace("Q", ""));
-      const year = parseInt(yearStr);
-      
-      const start = startOfQuarter(new Date(year, (quarter - 1) * 3, 1));
+      const start = startOfQuarter(new Date(selectedYear, (selectedQuarter - 1) * 3, 1));
       const end = endOfQuarter(start);
 
       let query = supabase
@@ -37,219 +56,239 @@ function QuarterlyPage() {
         `)
         .gte("reporting_week", format(start, "yyyy-MM-dd"))
         .lte("reporting_week", format(end, "yyyy-MM-dd"))
-        .eq("status", "reviewed");
+        .neq("status", "draft");
 
       if (!isAdmin) {
         query = query.eq("submitted_by", user!.id);
       }
 
-      const { data } = await query;
-      return data ?? [];
+      const { data: reportsData, error: reportsError } = await query;
+      if (reportsError) throw reportsError;
+
+      const { data: profiles } = await supabase.from("profiles").select("id, full_name");
+      const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) ?? []);
+      
+      return (reportsData ?? []).map((r: any) => ({
+        ...r,
+        submitter: {
+          full_name: profileMap.get(r.submitted_by) || "Unknown"
+        }
+      }));
     },
   });
 
-  const monthlyData = useMemo(() => {
-    if (!reports) return [];
-    
-    const months: Record<string, any> = {};
-    
-    reports.forEach((r: any) => {
-      const date = new Date(r.reporting_week);
-      const monthLabel = format(date, "MMMM yyyy");
-      
-      if (!months[monthLabel]) {
-        months[monthLabel] = {
-          label: monthLabel,
-          timestamp: date.getTime(),
-          areas: {}
-        };
-      }
-      
-      const area = r.institution?.business_area;
-      if (!area) return;
-      
-      if (!months[monthLabel].areas[area.id]) {
-        months[monthLabel].areas[area.id] = {
-          id: area.id,
-          name: area.name,
-          color: area.color,
-          reportCount: 0,
-          institutions: {},
-          prospects: [],
-          insights: [],
-        };
-      }
-      
-      const targetArea = months[monthLabel].areas[area.id];
-      targetArea.reportCount++;
-      
-      const instName = r.institution.name;
-      if (!targetArea.institutions[instName]) {
-        targetArea.institutions[instName] = 0;
-      }
-      targetArea.institutions[instName]++;
-      
-      const weekLabel = getWorkWeekOfMonth(new Date(r.reporting_week));
-      
-      if (r.business_prospect) {
-        targetArea.prospects.push({ week: weekLabel, text: r.business_prospect });
-      }
-      if (r.industry_insight) {
-        targetArea.insights.push({ week: weekLabel, text: r.industry_insight });
-      }
-    });
-    
-    return Object.values(months).sort((a: any, b: any) => a.timestamp - b.timestamp);
+  const stats = useMemo(() => {
+    if (!reports) return { total: 0, areas: 0, institutions: 0 };
+    const areas = new Set(reports.map((r: any) => r.institution?.business_area?.id)).size;
+    const institutions = new Set(reports.map((r: any) => r.institution_id)).size;
+    return { total: reports.length, areas, institutions };
   }, [reports]);
 
+  const structuredData = useMemo(() => {
+    if (!reports) return [];
+    
+    return quarterMonths.map((monthName, index) => {
+      const monthDate = new Date(selectedYear, (selectedQuarter - 1) * 3 + index, 1);
+      const interval = { start: startOfMonth(monthDate), end: endOfMonth(monthDate) };
+      
+      const monthReports = reports.filter((r: any) => isWithinInterval(new Date(r.reporting_week), interval));
+      
+      const weeks: Record<string, any[]> = {};
+      monthReports.forEach((r: any) => {
+        const weekLabel = getWorkWeekOfMonth(new Date(r.reporting_week));
+        if (!weeks[weekLabel]) weeks[weekLabel] = [];
+        weeks[weekLabel].push(r);
+      });
+      
+      return {
+        name: monthName,
+        reportCount: monthReports.length,
+        weeks: Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])),
+      };
+    });
+  }, [reports, selectedYear, selectedQuarter, quarterMonths]);
+
+  // Expand the first month that has reports by default
+  useEffect(() => {
+    if (structuredData.length > 0 && !expandedMonth) {
+      const firstWithData = structuredData.find(m => m.reportCount > 0);
+      if (firstWithData) {
+        setExpandedMonth(firstWithData.name);
+      }
+    }
+  }, [structuredData, expandedMonth]);
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between flex-wrap gap-4">
+    <div className="space-y-8 pb-10">
+      <div className="flex items-end justify-between flex-wrap gap-6">
         <div>
-          <h2 className="font-serif text-3xl font-semibold text-navy">Quarterly Intelligence Review</h2>
-          <p className="text-sm text-muted-foreground">Monthly synthesis of submitted weekly intelligence reports.</p>
+          <h2 className="font-serif text-3xl font-semibold text-navy">Quarterly Intelligence</h2>
+          <p className="text-sm text-muted-foreground">Comprehensive synthesis of sector intelligence across {selectedYear}.</p>
         </div>
-        <div className="flex items-center gap-2 bg-card border rounded-lg p-1 shadow-sm">
-          {[-1, 0].map((offset) => {
-            const date = new Date();
-            date.setMonth(date.getMonth() + offset * 3);
-            const label = getQuarterLabel(date);
-            return (
-              <button
-                key={label}
-                onClick={() => setSelectedQuarter(label)}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${selectedQuarter === label ? "bg-navy text-white shadow-elegant" : "hover:bg-muted text-muted-foreground"}`}
-              >
-                {label}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 rounded-full border bg-card">
+            {isAdmin ? "Organisation view" : "Personal view"}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-start gap-8">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Select Year</p>
+            <div className="flex flex-wrap gap-2">
+              {years.map(y => (
+                <button
+                  key={y}
+                  onClick={() => setSelectedYear(y)}
+                  className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${selectedYear === y ? "bg-navy text-white shadow-elegant" : "bg-card border hover:bg-muted"}`}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-[300px]">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Select Quarter</p>
+            <div className="flex flex-wrap gap-2">
+              {quarters.map(q => (
+                <button
+                  key={q.id}
+                  onClick={() => setSelectedQuarter(q.id)}
+                  className={`px-5 py-2 rounded-xl text-sm font-medium transition-all ${selectedQuarter === q.id ? "bg-royal text-white shadow-elegant" : "bg-card border hover:bg-muted"}`}
+                >
+                  <span className="flex flex-col items-start">
+                    <span className="leading-none">{q.label}</span>
+                    <span className={`text-[10px] mt-1 opacity-60 ${selectedQuarter === q.id ? "text-white" : "text-muted-foreground"}`}>{q.range}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <KpiCard delay={0.1} label="Total Intelligence" value={stats.total} icon={<BarChart3 className="h-5 w-5" />} accent="navy" />
+          <KpiCard delay={0.15} label="Active Sectors" value={stats.areas} icon={<TrendingUp className="h-5 w-5" />} accent="royal" />
+          <KpiCard delay={0.2} label="Institutions Tracked" value={stats.institutions} icon={<Building2 className="h-5 w-5" />} accent="steel" />
         </div>
       </div>
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-32 space-y-4">
-          <Layers className="h-10 w-10 text-navy/20 animate-pulse" />
-          <p className="text-sm text-muted-foreground animate-pulse">Synthesizing intelligence data...</p>
+          <Loader2 className="h-8 w-8 text-navy animate-spin" />
+          <p className="text-sm text-muted-foreground">Aggregating quarterly insights...</p>
         </div>
-      ) : monthlyData.length === 0 ? (
+      ) : stats.total === 0 ? (
         <div className="rounded-2xl border border-dashed bg-card/50 p-20 text-center">
           <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
             <Layers className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="font-serif text-xl font-semibold text-navy">No data for this period</h3>
+          <h3 className="font-serif text-xl font-semibold text-navy">No intelligence captured</h3>
           <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
-            Monthly summaries are generated from submitted weekly intelligence. No submissions found for {selectedQuarter}.
+            There are no submitted reports found for Q{selectedQuarter} {selectedYear}.
           </p>
         </div>
       ) : (
-        <div className="space-y-12">
-          {monthlyData.map((month: any) => (
-            <div key={month.label} className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-                <h3 className="font-serif text-xl font-bold text-navy uppercase tracking-widest px-4 py-2 rounded-full border bg-muted/30">
-                  {month.label}
-                </h3>
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border to-transparent" />
-              </div>
+        <div className="grid grid-cols-1 gap-6">
+          {structuredData.map((month, i) => (
+            <motion.div
+              key={month.name}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * i }}
+              className="rounded-2xl border bg-card overflow-hidden shadow-elegant"
+            >
+              <button
+                onClick={() => setExpandedMonth(expandedMonth === month.name ? null : month.name)}
+                className="w-full flex items-center justify-between px-6 py-5 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="h-14 w-14 rounded-xl bg-gradient-navy text-white flex flex-col items-center justify-center shadow-elegant p-1">
+                    <span className="text-[9px] font-bold uppercase leading-none mb-1 opacity-70 text-center">{month.name}</span>
+                    <span className="text-lg font-serif font-bold leading-none">{month.reportCount}</span>
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-serif text-xl font-bold text-navy">{month.name}</h4>
+                    <p className="text-xs text-muted-foreground font-medium">{month.reportCount} Intelligence Submissions</p>
+                  </div>
+                </div>
+                <div className={`p-2 rounded-full transition-colors ${expandedMonth === month.name ? "bg-navy text-white" : "bg-muted text-muted-foreground"}`}>
+                  {expandedMonth === month.name ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </div>
+              </button>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {Object.values(month.areas).map((area: any) => (
+              <AnimatePresence>
+                {expandedMonth === month.name && (
                   <motion.div
-                    key={`${month.label}-${area.id}`}
-                    layout
-                    className="group relative overflow-hidden rounded-2xl border bg-card p-6 shadow-elegant hover:shadow-elevated transition-all"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden bg-muted/10 border-t"
                   >
-                    <div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: area.color }} />
-                    
-                    <div className="flex items-start justify-between mb-6">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Business Area</p>
-                        <h4 className="font-serif text-lg font-bold text-navy">{area.name}</h4>
-                      </div>
-                      <div className="h-10 w-10 rounded-xl bg-navy/5 flex items-center justify-center text-navy font-serif font-bold">
-                        {area.reportCount}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2 flex items-center gap-1.5">
-                          <Building2 className="h-3 w-3" /> Key Institutions
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Object.entries(area.institutions).map(([name, count]: [string, any]) => (
-                            <span key={name} className="px-2 py-1 rounded-md bg-muted/50 text-[10px] font-medium text-navy border border-navy/5">
-                              {name} ({count})
-                            </span>
-                          ))}
+                    <div className="p-6 space-y-8">
+                      {month.weeks.length > 0 ? (
+                        month.weeks.map(([weekName, reports]) => {
+                          const isExpanded = expandedWeeks[`${month.name}-${weekName}`] !== false; // Default to expanded
+                          return (
+                            <div key={weekName} className="space-y-4">
+                              <button 
+                                onClick={() => toggleWeek(month.name, weekName)}
+                                className="w-full flex items-center gap-4 group/week"
+                              >
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-royal whitespace-nowrap group-hover/week:text-navy transition-colors">{weekName}</span>
+                                <div className="h-px flex-1 bg-navy/10 group-hover/week:bg-navy/20 transition-colors" />
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-bold bg-royal/10 text-royal px-2.5 py-0.5 rounded-full">{reports.length} Reports</span>
+                                  <div className={`p-1 rounded-md transition-colors ${isExpanded ? "bg-navy/5 text-navy" : "bg-muted text-muted-foreground"}`}>
+                                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                  </div>
+                                </div>
+                              </button>
+                              
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-1">
+                                      {reports.map((r: any) => (
+                                        <div key={r.id} className="p-4 rounded-xl border bg-card shadow-sm hover:shadow-elegant transition-all border-l-4 flex flex-col justify-between" style={{ borderLeftColor: r.institution?.business_area?.color }}>
+                                          <div>
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                              <h5 className="text-xs font-bold text-navy leading-tight line-clamp-2">{r.institution?.name}</h5>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground line-clamp-3 mb-4 leading-relaxed italic">
+                                              "{r.business_prospect || r.industry_insight || "No brief content available."}"
+                                            </p>
+                                          </div>
+                                          <div className="flex items-center justify-between text-[9px] text-muted-foreground pt-2 border-t border-dashed">
+                                            <span className="flex items-center gap-1 font-medium"><Users className="h-2.5 w-2.5 text-royal" /> {r.submitter?.full_name?.split(' ')[0]}</span>
+                                            <span className="flex items-center gap-1 font-medium"><CalendarDays className="h-2.5 w-2.5 text-royal" /> {format(new Date(r.reporting_week), "MMM d")}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="col-span-full py-12 text-center">
+                          <p className="text-sm text-muted-foreground italic">No reports captured for this period.</p>
                         </div>
-                      </div>
-
-                      <button
-                        onClick={() => setExpandedArea(expandedArea === `${month.label}-${area.id}` ? null : `${month.label}-${area.id}`)}
-                        className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-navy/10 bg-navy/5 text-navy text-xs font-semibold hover:bg-navy hover:text-white transition-all group-hover:border-navy/20"
-                      >
-                        {expandedArea === `${month.label}-${area.id}` ? (
-                          <><ChevronUp className="h-3.5 w-3.5" /> Collapse Insights</>
-                        ) : (
-                          <><ChevronDown className="h-3.5 w-3.5" /> View Monthly Synthesis</>
-                        )}
-                      </button>
-                    </div>
-
-                    <AnimatePresence>
-                      {expandedArea === `${month.label}-${area.id}` && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-6 mt-6 border-t space-y-6">
-                            <div className="space-y-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-royal">Monthly Prospects</p>
-                              <div className="space-y-3">
-                                {area.prospects.map((p: any, i: number) => (
-                                  <div key={i} className="group/item">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-royal/10 text-royal uppercase tracking-tighter">
-                                        {p.week}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-royal/20 italic">
-                                      "{p.text}"
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-royal">Market Signals</p>
-                              <div className="space-y-3">
-                                {area.insights.map((ins: any, i: number) => (
-                                  <div key={i} className="group/item">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-royal/10 text-royal uppercase tracking-tighter">
-                                        {ins.week}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-royal/20 italic">
-                                      "{ins.text}"
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
                       )}
-                    </AnimatePresence>
+                    </div>
                   </motion.div>
-                ))}
-              </div>
-            </div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           ))}
         </div>
       )}
