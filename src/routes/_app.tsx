@@ -10,13 +10,20 @@ import { Loader2 } from "lucide-react";
 export const Route = createFileRoute("/_app")({ component: AppLayout });
 
 function AppLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
+    if (!loading) {
+      if (!user) {
+        navigate({ to: "/login" });
+      } else if (pathname.startsWith("/admin") && !isAdmin) {
+        // Prevent team members from accessing admin routes via URL manipulation
+        navigate({ to: "/dashboard" });
+      }
+    }
+  }, [loading, user, isAdmin, navigate, pathname]);
 
   if (loading || !user) {
     return (

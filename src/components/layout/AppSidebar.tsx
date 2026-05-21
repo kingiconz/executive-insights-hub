@@ -33,11 +33,11 @@ export function AppSidebar() {
     <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-6 py-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-gradient-navy flex items-center justify-center shadow-elegant">
-            <span className="font-serif text-lg font-bold text-white">B</span>
+          <div className="h-11 w-11 rounded-full bg-white flex items-center justify-center shadow-elegant">
+            <img src="/logo.ico" alt="Logo" className="h-8 w-8" />
           </div>
           <div>
-            <p className="font-serif text-base font-semibold tracking-tight">Beacon BI</p>
+            <p className="font-serif text-base font-semibold tracking-tight">e-CB</p>
             <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60">Sector Intelligence</p>
           </div>
         </div>

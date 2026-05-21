@@ -42,11 +42,11 @@ function LoginPage() {
         <FloatingShapes />
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-md bg-white/10 backdrop-blur flex items-center justify-center">
-              <span className="font-serif text-xl font-bold text-white">B</span>
+            <div className="h-11 w-11 rounded-full bg-white flex items-center justify-center">
+              <img src="/logo.ico" alt="Logo" className="h-8 w-8" />
             </div>
             <div>
-              <p className="font-serif text-white text-lg font-semibold">Beacon BI</p>
+              <p className="font-serif text-white text-lg font-semibold">e-CB</p>
               <p className="text-[10px] uppercase tracking-[0.22em] text-white/60">Sector Intelligence</p>
             </div>
           </div>

@@ -3,14 +3,28 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Building2, ArrowUpRight } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/business-areas")({ component: BusinessAreasPage });
 
 function BusinessAreasPage() {
+  const { isAdmin, user } = useAuth();
+
   const { data, isLoading } = useQuery({
-    queryKey: ["business-areas-overview"],
+    queryKey: ["business-areas-overview", isAdmin, user?.id],
     queryFn: async () => {
-      const { data: areas } = await supabase.from("business_areas").select("*").order("name");
+      let areas;
+      if (isAdmin) {
+        const { data } = await supabase.from("business_areas").select("*").order("name");
+        areas = data;
+      } else {
+        const { data: ubas } = await supabase
+          .from("user_business_areas")
+          .select("business_area:business_areas(*)")
+          .eq("user_id", user?.id);
+        areas = (ubas?.map(u => u.business_area) as any[])?.filter(Boolean) ?? [];
+      }
+
       if (!areas) return [];
       const enriched = await Promise.all(areas.map(async (a) => {
         const [inst, reports] = await Promise.all([
@@ -29,6 +43,7 @@ function BusinessAreasPage() {
       }));
       return enriched;
     },
+    enabled: !!user,
   });
 
   return (

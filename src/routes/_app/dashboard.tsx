@@ -1,19 +1,24 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { Briefcase, Building2, FileCheck2, Clock, ShieldCheck, Users, MessageSquare } from "lucide-react";
-import { motion } from "framer-motion";
+import { Briefcase, Building2, FileCheck2, Clock, ShieldCheck, Users, MessageSquare, ChevronRight, X, Calendar as CalendarIcon, Info } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 import { startOfWeek, format, subWeeks } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: DashboardPage });
 
 function DashboardPage() {
   const { isAdmin, user } = useAuth();
+  const navigate = useNavigate();
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [viewingReport, setViewingReport] = useState<any | null>(null);
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["dashboard", isAdmin, user?.id],
@@ -99,22 +104,43 @@ function DashboardPage() {
     },
   });
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="font-serif text-3xl font-semibold text-navy">Welcome back</h2>
-          <p className="text-muted-foreground text-sm">
-            {isAdmin
-              ? "Organisation-wide snapshot of weekly intelligence."
-              : "Your personal reporting performance and activity."}
-          </p>
-        </div>
-        <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 rounded-full border bg-card">
-          {isAdmin ? "Administrator view" : "Personal view"}
-        </span>
-      </div>
+  const { data: members } = useQuery({
+    queryKey: ["admin-team-members"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "team_member");
+      const userIds = roles?.map(r => r.user_id) ?? [];
+      if (userIds.length === 0) return [];
+      const { data } = await supabase.from("profiles").select("id, full_name").in("id", userIds).order("full_name");
+      return data ?? [];
+    },
+    enabled: isAdmin,
+  });
 
+  const { data: memberReports, isLoading: reportsLoading } = useQuery({
+    queryKey: ["member-reports", selectedMember],
+    enabled: !!selectedMember,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("weekly_reports")
+        .select("*, institution:institutions(name, business_area:business_areas(name))")
+        .eq("submitted_by", selectedMember!)
+        .order("reporting_week", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  const groupedReports = useMemo(() => {
+    if (!memberReports) return {};
+    return memberReports.reduce((acc: any, report: any) => {
+      const areaName = report.institution?.business_area?.name || "Other";
+      if (!acc[areaName]) acc[areaName] = [];
+      acc[areaName].push(report);
+      return acc;
+    }, {});
+  }, [memberReports]);
+
+  const dashboardContent = (
+    <>
       {isAdmin ? (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <KpiCard delay={0} label="Business Areas" value={stats?.totalAreas ?? "—"} icon={<Briefcase className="h-5 w-5" />} accent="navy" />
@@ -239,6 +265,224 @@ function DashboardPage() {
           </table>
         </div>
       </motion.div>
+    </>
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-end justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="font-serif text-3xl font-semibold text-navy">Welcome back</h2>
+          <p className="text-muted-foreground text-sm">
+            {isAdmin
+              ? "Organisation-wide snapshot of weekly intelligence."
+              : "Your personal reporting performance and activity."}
+          </p>
+        </div>
+        <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 rounded-full border bg-card">
+          {isAdmin ? "Administrator view" : "Personal view"}
+        </span>
+      </div>
+
+      {isAdmin ? (
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="overview" className="px-6">Overview</TabsTrigger>
+            <TabsTrigger value="weekly-reports" className="px-6">Weekly Reports</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-8">
+            {dashboardContent}
+          </TabsContent>
+
+          <TabsContent value="weekly-reports" className="space-y-6">
+            <div className="bg-card border rounded-xl p-6 shadow-elegant">
+              {members && members.length > 0 ? (
+                <Tabs 
+                  value={selectedMember || members[0]?.id} 
+                  onValueChange={setSelectedMember}
+                  className="space-y-6"
+                >
+                  <div className="overflow-x-auto pb-2">
+                    <TabsList className="bg-muted/50 p-1 inline-flex w-auto min-w-full">
+                      {members.map((member: any) => (
+                        <TabsTrigger key={member.id} value={member.id} className="px-6 whitespace-nowrap">
+                          {member.full_name}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+
+                  {members.map((member: any) => (
+                    <TabsContent key={member.id} value={member.id} className="space-y-6 mt-0">
+                      <div className="flex items-center gap-2 text-navy mb-2">
+                        <Users className="h-4 w-4" />
+                        <h4 className="font-serif font-semibold text-lg">
+                          Intelligence Portfolio: {member.full_name}
+                        </h4>
+                      </div>
+
+                      {reportsLoading ? (
+                        <div className="py-20 text-center">
+                          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-navy border-t-transparent" />
+                            Synchronizing reports...
+                          </div>
+                        </div>
+                      ) : Object.keys(groupedReports).length > 0 ? (
+                        <div className="space-y-8">
+                          {Object.entries(groupedReports).map(([areaName, reports]: [string, any]) => (
+                            <div key={areaName} className="space-y-3">
+                              <div className="flex items-center gap-2 border-b pb-2">
+                                <Briefcase className="h-4 w-4 text-royal" />
+                                <h5 className="text-sm font-semibold text-navy uppercase tracking-wider">{areaName}</h5>
+                                <span className="ml-auto text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-bold">
+                                  {reports.length} {reports.length === 1 ? 'Report' : 'Reports'}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {reports.map((report: any) => (
+                                  <motion.div
+                                    key={report.id}
+                                    whileHover={{ y: -2 }}
+                                    className="p-4 rounded-lg border bg-card/50 hover:bg-card hover:shadow-md transition-all cursor-pointer group"
+                                    onClick={() => setViewingReport(report)}
+                                  >
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="min-w-0">
+                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                                          {format(new Date(report.reporting_week), "MMMM d, yyyy")}
+                                        </p>
+                                        <h6 className="font-semibold text-navy truncate group-hover:text-royal transition-colors">
+                                          {report.institution?.name}
+                                        </h6>
+                                      </div>
+                                      <StatusBadge status={report.status} />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3 italic">
+                                      {report.business_prospect || report.industry_insight || "No summary available."}
+                                    </p>
+                                    <div className="flex items-center justify-between text-[10px]">
+                                      <span className="flex items-center gap-1 text-muted-foreground">
+                                        <Info className="h-3 w-3" /> Quick View
+                                      </span>
+                                      <button 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate({ to: "/reports" });
+                                        }}
+                                        className="text-royal font-bold hover:underline inline-flex items-center gap-0.5"
+                                      >
+                                        Edit/Review <ChevronRight className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                          <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                            <FileCheck2 className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <h3 className="text-sm font-medium text-navy">No reports found</h3>
+                          <p className="text-xs text-muted-foreground mt-1">This team member hasn't submitted any reports in this area yet.</p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              ) : (
+                <div className="py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                    <Users className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-sm font-medium text-navy">No team members</h3>
+                  <p className="text-xs text-muted-foreground mt-1">There are no team members assigned to your organisation yet.</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : dashboardContent}
+
+      <AnimatePresence>
+        {viewingReport && (
+          <div className="fixed inset-0 z-50 bg-navy/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setViewingReport(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-card rounded-2xl w-full max-w-2xl shadow-elevated overflow-hidden max-h-[90vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b flex items-center justify-between bg-muted/30">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Weekly Intelligence Report</p>
+                  <h3 className="font-serif text-xl font-bold text-navy">{viewingReport.institution?.name}</h3>
+                </div>
+                <button onClick={() => setViewingReport(null)} className="p-2 hover:bg-muted rounded-full transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-muted/30 p-3 rounded-lg">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Reporting Week</p>
+                    <p className="text-sm font-semibold flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-royal" />
+                      {format(new Date(viewingReport.reporting_week), "MMMM d, yyyy")}
+                    </p>
+                  </div>
+                  <div className="bg-muted/30 p-3 rounded-lg">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                    <StatusBadge status={viewingReport.status} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <Section label="Business Prospects" content={viewingReport.business_prospect} />
+                  <Section label="Industry Insights" content={viewingReport.industry_insight} />
+                  <Section label="Competitor Insights" content={viewingReport.competitor_insight} />
+                  <Section label="Action Register" content={viewingReport.action_register} />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t bg-muted/10 flex justify-end gap-3">
+                <button 
+                  onClick={() => setViewingReport(null)}
+                  className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button 
+                  onClick={() => {
+                    setViewingReport(null);
+                    navigate({ to: "/reports" });
+                  }}
+                  className="px-4 py-2 text-sm font-medium bg-navy text-white rounded-lg shadow-elegant hover:opacity-90 transition-opacity"
+                >
+                  Full Review
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Section({ label, content }: { label: string; content: string | null }) {
+  if (!content) return null;
+  return (
+    <div className="space-y-1.5">
+      <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-royal">{label}</h4>
+      <p className="text-sm text-navy leading-relaxed bg-muted/10 p-3 rounded-lg border-l-2 border-royal/30">{content}</p>
     </div>
   );
 }

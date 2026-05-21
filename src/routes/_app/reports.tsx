@@ -19,14 +19,47 @@ function ReportsPage() {
   const [composing, setComposing] = useState(false);
   const [openReport, setOpenReport] = useState<any | null>(null);
   const [filter, setFilter] = useState<"all" | "draft" | "submitted" | "reviewed">("all");
+  const [selectedMember, setSelectedMember] = useState<string>("all");
+  const [selectedArea, setSelectedArea] = useState<string>("all");
+
+  const { data: members } = useQuery({
+    queryKey: ["admin-team-members"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "team_member");
+      const userIds = roles?.map(r => r.user_id) ?? [];
+      if (userIds.length === 0) return [];
+      const { data } = await supabase.from("profiles").select("id, full_name").in("id", userIds).order("full_name");
+      return data ?? [];
+    },
+    enabled: isAdmin,
+  });
+
+  const { data: areas } = useQuery({
+    queryKey: ["business-areas-list"],
+    queryFn: async () => (await supabase.from("business_areas").select("id, name").order("name")).data ?? [],
+  });
 
   const { data: reports, isLoading } = useQuery({
-    queryKey: ["reports", isAdmin, user?.id],
+    queryKey: ["reports", isAdmin, user?.id, selectedMember, selectedArea],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("weekly_reports")
-        .select("*, institution:institutions(name, business_area:business_areas(name, color)), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)")
+        .select("*, institution:institutions(name, business_area:business_areas(id, name, color)), submitter:profiles!weekly_reports_submitted_by_fkey(full_name)")
         .order("created_at", { ascending: false });
+
+      if (!isAdmin) {
+        if (user?.id) {
+          query = query.eq("submitted_by", user.id);
+        }
+      } else if (selectedMember !== "all") {
+        query = query.eq("submitted_by", selectedMember);
+      }
+
+      if (selectedArea !== "all") {
+        query = query.eq("business_area_id", selectedArea);
+      }
+
+      const { data } = await query;
       return data ?? [];
     },
   });
@@ -42,11 +75,59 @@ function ReportsPage() {
             {isAdmin ? "Review, comment on, and track all team intelligence reports." : "Submit, edit, and review your weekly intelligence reports."}
           </p>
         </div>
-        <button onClick={() => setComposing(true)}
-          className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-navy text-navy-foreground hover:opacity-90 transition-opacity shadow-elegant">
-          <Plus className="h-4 w-4" /> New report
-        </button>
+        {!isAdmin && (
+          <button onClick={() => setComposing(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-navy text-navy-foreground hover:opacity-90 transition-opacity shadow-elegant">
+            <Plus className="h-4 w-4" /> New report
+          </button>
+        )}
       </div>
+
+      {isAdmin && members && members.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Filter by Team Member</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedMember("all")}
+                className={`px-4 py-2 rounded-lg text-sm transition-all ${selectedMember === "all" ? "bg-navy text-white shadow-elegant" : "bg-card border hover:bg-muted"}`}
+              >
+                All Team
+              </button>
+              {members.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMember(m.id)}
+                  className={`px-4 py-2 rounded-lg text-sm transition-all ${selectedMember === m.id ? "bg-navy text-white shadow-elegant" : "bg-card border hover:bg-muted"}`}
+                >
+                  {m.full_name || "Unknown"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Filter by Business Area</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedArea("all")}
+                className={`px-4 py-2 rounded-lg text-sm transition-all ${selectedArea === "all" ? "bg-royal/10 text-royal border-royal/20" : "bg-card border hover:bg-muted"}`}
+              >
+                All Areas
+              </button>
+              {areas?.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => setSelectedArea(a.id)}
+                  className={`px-4 py-2 rounded-lg text-sm transition-all ${selectedArea === a.id ? "bg-royal/10 text-royal border-royal/20" : "bg-card border hover:bg-muted"}`}
+                >
+                  {a.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {(["all", "draft", "submitted", "reviewed"] as const).map(s => (
@@ -145,8 +226,12 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
   const [editing, setEditing] = useState(mode === "compose");
 
   const { data: institutions } = useQuery({
-    queryKey: ["compose-institutions"],
-    queryFn: async () => (await supabase.from("institutions").select("id, name, business_area_id, business_area:business_areas(name)").order("name")).data ?? [],
+    queryKey: ["compose-institutions", isAdmin, userId],
+    queryFn: async () => {
+      let q = supabase.from("institutions").select("id, name, business_area_id, business_area:business_areas(name)").order("name");
+      const { data } = await q;
+      return data ?? [];
+    },
   });
 
   const [form, setForm] = useState({
@@ -162,7 +247,7 @@ function ReportModal({ mode, report, onClose, onSaved, userId, isAdmin }:
 
   // Mark comments seen when opening
   useEffect(() => {
-    if (mode === "view" && report && isOwner && report.last_comment_at) {
+    if (mode === "view" && report?.id && isOwner && report.last_comment_at) {
       supabase.from("weekly_reports").update({ last_seen_comment_at: new Date().toISOString() }).eq("id", report.id).then(() => {
         qc.invalidateQueries({ queryKey: ["dashboard"] });
         qc.invalidateQueries({ queryKey: ["reports"] });

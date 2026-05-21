@@ -129,7 +129,7 @@ function NotificationsPage() {
                       {formatDistanceToNow(new Date(e.at), { addSuffix: true })}
                     </p>
                   </div>
-                  <Link to="/reports" className="text-xs text-royal hover:underline shrink-0">View</Link>
+                  <Link to={isAdmin ? "/dashboard" : "/reports"} className="text-xs text-royal hover:underline shrink-0">View</Link>
                 </motion.li>
               );
             })}
