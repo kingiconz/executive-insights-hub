@@ -85,6 +85,166 @@ export type Database = {
           },
         ]
       }
+      opportunities: {
+        Row: {
+          assigned_officer: string | null
+          business_area_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          estimated_value: number | null
+          expected_close_date: string | null
+          id: string
+          institution_id: string
+          last_engagement_date: string | null
+          next_follow_up_date: string | null
+          probability: number
+          service_category: string | null
+          stage: Database["public"]["Enums"]["pipeline_stage"]
+          status: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_officer?: string | null
+          business_area_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          estimated_value?: number | null
+          expected_close_date?: string | null
+          id?: string
+          institution_id: string
+          last_engagement_date?: string | null
+          next_follow_up_date?: string | null
+          probability?: number
+          service_category?: string | null
+          stage?: Database["public"]["Enums"]["pipeline_stage"]
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_officer?: string | null
+          business_area_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          estimated_value?: number | null
+          expected_close_date?: string | null
+          id?: string
+          institution_id?: string
+          last_engagement_date?: string | null
+          next_follow_up_date?: string | null
+          probability?: number
+          service_category?: string | null
+          stage?: Database["public"]["Enums"]["pipeline_stage"]
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      opportunity_activities: {
+        Row: {
+          activity_date: string
+          assigned_user: string | null
+          created_at: string
+          created_by: string
+          id: string
+          kind: Database["public"]["Enums"]["activity_kind"]
+          next_action: string | null
+          next_action_date: string | null
+          opportunity_id: string
+          outcome: string | null
+        }
+        Insert: {
+          activity_date?: string
+          assigned_user?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          kind?: Database["public"]["Enums"]["activity_kind"]
+          next_action?: string | null
+          next_action_date?: string | null
+          opportunity_id: string
+          outcome?: string | null
+        }
+        Update: {
+          activity_date?: string
+          assigned_user?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["activity_kind"]
+          next_action?: string | null
+          next_action_date?: string | null
+          opportunity_id?: string
+          outcome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_activities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_proposals: {
+        Row: {
+          created_at: string
+          created_by: string
+          document_url: string | null
+          id: string
+          kind: Database["public"]["Enums"]["proposal_kind"]
+          notes: string | null
+          opportunity_id: string
+          proposal_date: string
+          status: Database["public"]["Enums"]["proposal_status"]
+          updated_at: string
+          value: number | null
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          document_url?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["proposal_kind"]
+          notes?: string | null
+          opportunity_id: string
+          proposal_date?: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          updated_at?: string
+          value?: number | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          document_url?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["proposal_kind"]
+          notes?: string | null
+          opportunity_id?: string
+          proposal_date?: string
+          status?: Database["public"]["Enums"]["proposal_status"]
+          updated_at?: string
+          value?: number | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_proposals_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -301,8 +461,44 @@ export type Database = {
       }
     }
     Enums: {
+      activity_kind:
+        | "call"
+        | "meeting"
+        | "email"
+        | "site_visit"
+        | "presentation"
+        | "proposal_discussion"
+        | "other"
       app_role: "admin" | "team_member"
+      opportunity_status:
+        | "open"
+        | "active"
+        | "won"
+        | "lost"
+        | "on_hold"
+        | "cancelled"
+      pipeline_stage:
+        | "lead_generation"
+        | "qualification"
+        | "discovery"
+        | "proposal"
+        | "negotiation"
+        | "delivery"
+        | "expand_retain"
       priority_level: "low" | "medium" | "high" | "critical"
+      proposal_kind:
+        | "bespoke_sent"
+        | "detailed_requested"
+        | "detailed_submitted"
+        | "accepted"
+        | "rejected"
+      proposal_status:
+        | "draft"
+        | "sent"
+        | "under_review"
+        | "accepted"
+        | "rejected"
+        | "withdrawn"
       report_status: "draft" | "submitted" | "reviewed" | "pending" | "overdue"
     }
     CompositeTypes: {
@@ -431,8 +627,49 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_kind: [
+        "call",
+        "meeting",
+        "email",
+        "site_visit",
+        "presentation",
+        "proposal_discussion",
+        "other",
+      ],
       app_role: ["admin", "team_member"],
+      opportunity_status: [
+        "open",
+        "active",
+        "won",
+        "lost",
+        "on_hold",
+        "cancelled",
+      ],
+      pipeline_stage: [
+        "lead_generation",
+        "qualification",
+        "discovery",
+        "proposal",
+        "negotiation",
+        "delivery",
+        "expand_retain",
+      ],
       priority_level: ["low", "medium", "high", "critical"],
+      proposal_kind: [
+        "bespoke_sent",
+        "detailed_requested",
+        "detailed_submitted",
+        "accepted",
+        "rejected",
+      ],
+      proposal_status: [
+        "draft",
+        "sent",
+        "under_review",
+        "accepted",
+        "rejected",
+        "withdrawn",
+      ],
       report_status: ["draft", "submitted", "reviewed", "pending", "overdue"],
     },
   },
