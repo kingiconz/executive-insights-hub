@@ -15,6 +15,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppQuarterlyRouteImport } from './routes/_app/quarterly'
+import { Route as AppPipelineRouteImport } from './routes/_app/pipeline'
+import { Route as AppOpportunitiesRouteImport } from './routes/_app/opportunities'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppInstitutionsRouteImport } from './routes/_app/institutions'
 import { Route as AppExportsRouteImport } from './routes/_app/exports'
@@ -22,6 +24,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
 import { Route as AppBusinessAreasRouteImport } from './routes/_app/business-areas'
 import { Route as AppAnalyticsRouteImport } from './routes/_app/analytics'
+import { Route as AppOpportunitiesIdRouteImport } from './routes/_app/opportunities.$id'
 import { Route as AppAdminUsersRouteImport } from './routes/_app/admin/users'
 import { Route as AppAdminInstitutionsRouteImport } from './routes/_app/admin/institutions'
 import { Route as AppAdminBusinessAreasRouteImport } from './routes/_app/admin/business-areas'
@@ -53,6 +56,16 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppQuarterlyRoute = AppQuarterlyRouteImport.update({
   id: '/quarterly',
   path: '/quarterly',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPipelineRoute = AppPipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOpportunitiesRoute = AppOpportunitiesRouteImport.update({
+  id: '/opportunities',
+  path: '/opportunities',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
@@ -90,6 +103,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOpportunitiesIdRoute = AppOpportunitiesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppOpportunitiesRoute,
+} as any)
 const AppAdminUsersRoute = AppAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -116,12 +134,15 @@ export interface FileRoutesByFullPath {
   '/exports': typeof AppExportsRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/opportunities': typeof AppOpportunitiesRouteWithChildren
+  '/pipeline': typeof AppPipelineRoute
   '/quarterly': typeof AppQuarterlyRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/admin/business-areas': typeof AppAdminBusinessAreasRoute
   '/admin/institutions': typeof AppAdminInstitutionsRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/opportunities/$id': typeof AppOpportunitiesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -133,12 +154,15 @@ export interface FileRoutesByTo {
   '/exports': typeof AppExportsRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
+  '/opportunities': typeof AppOpportunitiesRouteWithChildren
+  '/pipeline': typeof AppPipelineRoute
   '/quarterly': typeof AppQuarterlyRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/admin/business-areas': typeof AppAdminBusinessAreasRoute
   '/admin/institutions': typeof AppAdminInstitutionsRoute
   '/admin/users': typeof AppAdminUsersRoute
+  '/opportunities/$id': typeof AppOpportunitiesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,12 +176,15 @@ export interface FileRoutesById {
   '/_app/exports': typeof AppExportsRoute
   '/_app/institutions': typeof AppInstitutionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/opportunities': typeof AppOpportunitiesRouteWithChildren
+  '/_app/pipeline': typeof AppPipelineRoute
   '/_app/quarterly': typeof AppQuarterlyRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/admin/business-areas': typeof AppAdminBusinessAreasRoute
   '/_app/admin/institutions': typeof AppAdminInstitutionsRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
+  '/_app/opportunities/$id': typeof AppOpportunitiesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -171,12 +198,15 @@ export interface FileRouteTypes {
     | '/exports'
     | '/institutions'
     | '/notifications'
+    | '/opportunities'
+    | '/pipeline'
     | '/quarterly'
     | '/reports'
     | '/settings'
     | '/admin/business-areas'
     | '/admin/institutions'
     | '/admin/users'
+    | '/opportunities/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,12 +218,15 @@ export interface FileRouteTypes {
     | '/exports'
     | '/institutions'
     | '/notifications'
+    | '/opportunities'
+    | '/pipeline'
     | '/quarterly'
     | '/reports'
     | '/settings'
     | '/admin/business-areas'
     | '/admin/institutions'
     | '/admin/users'
+    | '/opportunities/$id'
   id:
     | '__root__'
     | '/'
@@ -206,12 +239,15 @@ export interface FileRouteTypes {
     | '/_app/exports'
     | '/_app/institutions'
     | '/_app/notifications'
+    | '/_app/opportunities'
+    | '/_app/pipeline'
     | '/_app/quarterly'
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/admin/business-areas'
     | '/_app/admin/institutions'
     | '/_app/admin/users'
+    | '/_app/opportunities/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -264,6 +300,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppQuarterlyRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pipeline': {
+      id: '/_app/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof AppPipelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/opportunities': {
+      id: '/_app/opportunities'
+      path: '/opportunities'
+      fullPath: '/opportunities'
+      preLoaderRoute: typeof AppOpportunitiesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -313,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/opportunities/$id': {
+      id: '/_app/opportunities/$id'
+      path: '/$id'
+      fullPath: '/opportunities/$id'
+      preLoaderRoute: typeof AppOpportunitiesIdRouteImport
+      parentRoute: typeof AppOpportunitiesRoute
+    }
     '/_app/admin/users': {
       id: '/_app/admin/users'
       path: '/admin/users'
@@ -337,6 +394,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppOpportunitiesRouteChildren {
+  AppOpportunitiesIdRoute: typeof AppOpportunitiesIdRoute
+}
+
+const AppOpportunitiesRouteChildren: AppOpportunitiesRouteChildren = {
+  AppOpportunitiesIdRoute: AppOpportunitiesIdRoute,
+}
+
+const AppOpportunitiesRouteWithChildren =
+  AppOpportunitiesRoute._addFileChildren(AppOpportunitiesRouteChildren)
+
 interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBusinessAreasRoute: typeof AppBusinessAreasRoute
@@ -345,6 +413,8 @@ interface AppRouteChildren {
   AppExportsRoute: typeof AppExportsRoute
   AppInstitutionsRoute: typeof AppInstitutionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOpportunitiesRoute: typeof AppOpportunitiesRouteWithChildren
+  AppPipelineRoute: typeof AppPipelineRoute
   AppQuarterlyRoute: typeof AppQuarterlyRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -361,6 +431,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppExportsRoute: AppExportsRoute,
   AppInstitutionsRoute: AppInstitutionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOpportunitiesRoute: AppOpportunitiesRouteWithChildren,
+  AppPipelineRoute: AppPipelineRoute,
   AppQuarterlyRoute: AppQuarterlyRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -379,13 +451,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
