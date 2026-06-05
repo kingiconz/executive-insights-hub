@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Briefcase, Building2, FileText, BarChart3,
-  Bell, Calendar, Download, Settings, Users, Layers, LogOut,
+  Bell, Calendar, Download, Settings, Users, Layers, LogOut, Target, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -12,6 +12,8 @@ const baseItems = [
   { to: "/business-areas", label: "My Business Areas", icon: Briefcase },
   { to: "/institutions", label: "Institutions", icon: Building2 },
   { to: "/reports", label: "Weekly Reports", icon: FileText },
+  { to: "/pipeline", label: "Pipeline Analytics", icon: GitBranch },
+  { to: "/opportunities", label: "Opportunities", icon: Target },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/notifications", label: "Notifications", icon: Bell },
   { to: "/calendar", label: "Calendar", icon: Calendar },
