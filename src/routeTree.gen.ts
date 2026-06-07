@@ -19,6 +19,7 @@ import { Route as AppPipelineRouteImport } from './routes/_app/pipeline'
 import { Route as AppOpportunitiesRouteImport } from './routes/_app/opportunities'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppInstitutionsRouteImport } from './routes/_app/institutions'
+import { Route as AppImportRouteImport } from './routes/_app/import'
 import { Route as AppExportsRouteImport } from './routes/_app/exports'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
@@ -78,6 +79,11 @@ const AppInstitutionsRoute = AppInstitutionsRouteImport.update({
   path: '/institutions',
   getParentRoute: () => AppRoute,
 } as any)
+const AppImportRoute = AppImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppExportsRoute = AppExportsRouteImport.update({
   id: '/exports',
   path: '/exports',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AppCalendarRoute
   '/dashboard': typeof AppDashboardRoute
   '/exports': typeof AppExportsRoute
+  '/import': typeof AppImportRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/opportunities': typeof AppOpportunitiesRouteWithChildren
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarRoute
   '/dashboard': typeof AppDashboardRoute
   '/exports': typeof AppExportsRoute
+  '/import': typeof AppImportRoute
   '/institutions': typeof AppInstitutionsRoute
   '/notifications': typeof AppNotificationsRoute
   '/opportunities': typeof AppOpportunitiesRouteWithChildren
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/exports': typeof AppExportsRoute
+  '/_app/import': typeof AppImportRoute
   '/_app/institutions': typeof AppInstitutionsRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/opportunities': typeof AppOpportunitiesRouteWithChildren
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/exports'
+    | '/import'
     | '/institutions'
     | '/notifications'
     | '/opportunities'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/dashboard'
     | '/exports'
+    | '/import'
     | '/institutions'
     | '/notifications'
     | '/opportunities'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/_app/calendar'
     | '/_app/dashboard'
     | '/_app/exports'
+    | '/_app/import'
     | '/_app/institutions'
     | '/_app/notifications'
     | '/_app/opportunities'
@@ -328,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInstitutionsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/import': {
+      id: '/_app/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof AppImportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/exports': {
       id: '/_app/exports'
       path: '/exports'
@@ -411,6 +430,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppExportsRoute: typeof AppExportsRoute
+  AppImportRoute: typeof AppImportRoute
   AppInstitutionsRoute: typeof AppInstitutionsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppOpportunitiesRoute: typeof AppOpportunitiesRouteWithChildren
@@ -429,6 +449,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppExportsRoute: AppExportsRoute,
+  AppImportRoute: AppImportRoute,
   AppInstitutionsRoute: AppInstitutionsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppOpportunitiesRoute: AppOpportunitiesRouteWithChildren,

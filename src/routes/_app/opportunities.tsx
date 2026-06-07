@@ -95,13 +95,26 @@ function OpportunitiesPage() {
           <Link to="/pipeline" className="h-10 px-4 rounded-md border text-sm inline-flex items-center gap-2 hover:bg-muted/40">
             Analytics
           </Link>
-          <button onClick={() => setShowForm(!showForm)}
-            className="h-10 px-4 rounded-md bg-navy text-navy-foreground inline-flex items-center gap-2 shadow-elegant active:scale-95 transition-transform">
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? "Cancel" : "New Opportunity"}
-          </button>
+          {!isAdmin && (
+            <>
+              <Link to="/import" className="h-10 px-4 rounded-md border text-sm inline-flex items-center gap-2 hover:bg-muted/40">
+                Import Excel
+              </Link>
+              <button onClick={() => setShowForm(!showForm)}
+                className="h-10 px-4 rounded-md bg-navy text-navy-foreground inline-flex items-center gap-2 shadow-elegant active:scale-95 transition-transform">
+                {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {showForm ? "Cancel" : "New Opportunity"}
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="rounded-lg border border-royal/20 bg-royal/5 px-4 py-3 text-sm text-royal">
+          <strong className="font-semibold">Oversight view.</strong> Administrators monitor team pipeline activity. Opportunities are created by assigned team members.
+        </div>
+      )}
 
       <AnimatePresence>
         {showForm && (
