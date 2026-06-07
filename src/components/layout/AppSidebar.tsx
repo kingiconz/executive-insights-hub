@@ -52,6 +52,11 @@ export function AppSidebar() {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         <SidebarSection label="Workspace" items={baseItems} pathname={pathname} />
+        {!isAdmin && (
+          <div className="mt-6">
+            <SidebarSection label="Data Import" items={teamItems} pathname={pathname} />
+          </div>
+        )}
         {isAdmin && (
           <div className="mt-6">
             <SidebarSection label="Administration" items={adminItems} pathname={pathname} />
