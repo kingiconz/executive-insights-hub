@@ -2,7 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Briefcase, Building2, FileText, BarChart3,
-  Bell, Calendar, Download, Settings, Users, Layers, LogOut, Target, GitBranch,
+  Bell, Calendar, Download, Settings, Users, Layers, LogOut, Target, GitBranch, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -20,6 +20,10 @@ const baseItems = [
   { to: "/quarterly", label: "Quarterly Review", icon: Layers },
   { to: "/exports", label: "Export Center", icon: Download },
   { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
+const teamItems = [
+  { to: "/import", label: "Import from Excel", icon: Upload },
 ] as const;
 
 const adminItems = [
